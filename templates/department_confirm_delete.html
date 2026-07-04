@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Department{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2><i class="fa-solid fa-triangle-exclamation me-2 text-danger"></i>Delete Department</h2>
+    <p>Are you sure you want to delete "{{ object.name }}"?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash me-1"></i>Yes, delete</button>
+        <a href="{% url 'scheduler:department_list' %}" class="btn btn-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancel</a>
+    </form>
+</div>
+{% endblock %}
+

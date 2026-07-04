@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Timetable - {{ semester }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Make row separators clearly visible in on-screen view and captured image. */
+#timetable-export-root .timetable-grid.table.table-bordered {
+    border: 2px solid #bcc2c9;
+    border-collapse: collapse;
+}
+
+#timetable-export-root .timetable-grid.table.table-bordered > :not(caption) > * > * {
+    border-color: #c3c8cf !important;
+    border-width: 2px !important;
+}
+
+#timetable-export-root .timetable-grid.table.table-bordered > tbody > tr > td {
+    border-top-color: #b9bfc7 !important;
+    border-bottom-color: #b9bfc7 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" id="timetable-export-root">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="fa-regular fa-calendar-days me-2 text-primary"></i>Timetable for {{ semester }}{% if division %} - {{ division.name }}{% endif %}</h2>
+        {% if not for_pdf %}
+            {% if division %}
+            <a
+                href="{% url 'scheduler:division_timetable_export_image' division.id %}"
+                class="btn btn-outline-secondary"
+                id="download-image-btn"
+                data-hide-on-export="true"
+                data-export-target="timetable-export-root"
+                data-export-filename="timetable_sem_{{ semester.id }}_division_{{ division.id }}.png"
+            >
+                <i class="fa-regular fa-image me-1"></i>Download Image
+            </a>
+            {% else %}
+            <a
+                href="{% url 'scheduler:export_timetable_image' semester.id %}"
+                class="btn btn-outline-secondary"
+                id="download-image-btn"
+                data-hide-on-export="true"
+                data-export-target="timetable-export-root"
+                data-export-filename="timetable_sem_{{ semester.id }}.png"
+            >
+                <i class="fa-regular fa-image me-1"></i>Download Image
+            </a>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% if table %}
+    <div class="mb-3">
+        {% if start_time and end_time %}
+            <small>Hours: {{ start_time|time:"h:i A" }} - {{ end_time|time:"h:i A" }}</small><br>
+        {% endif %}
+        {% if working_days %}
+            <small>Working days: {{ working_days }}</small><br>
+        {% endif %}
+        {% if breaks %}
+            <small>Breaks: {{ breaks }}</small>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table timetable-grid table-bordered align-middle text-center">
+            <thead class="table-light">
+                <tr>
+                    <th>Day</th>
+                    {% for slot in timeslots %}
+                    <th{% if slot.is_break %} class="table-secondary"{% endif %}>
+                        {{ slot.start_time|time:"h:i A" }} - {{ slot.end_time|time:"h:i A" }}
+                        {% if slot.is_break %}<br><small>Break</small>{% endif %}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for day, cells in table %}
+                <tr>
+                    <td>{{ day }}</td>
+                    {% for cell in cells %}
+                        {% if cell.break %}
+                            <td class="table-secondary"><em>Break</em></td>
+                        {% elif cell.empty %}
+                            <td></td>
+                        {% else %}
+                            <td{% if cell.colspan and cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %} class="{% if cell.entry.subject.is_lab %}table-warning{% endif %}">
+                                <strong>{{ cell.entry.subject.name }}</strong><br>
+                                {% if cell.batch_rows %}
+                                    <small>
+                                        {% for batch in cell.batch_rows %}
+                                            Batch {{ batch.batch_number }}: {{ batch.from_roll_no }}-{{ batch.to_roll_no }} - {{ batch.teacher.name }} ({{ batch.laboratory.room_number }}){% if not forloop.last %}<br>{% endif %}
+                                        {% endfor %}
+                                    </small>
+                                {% elif cell.entries and cell.entries|length > 1 %}
+                                    <small>
+                                        {% for entry in cell.entries %}
+                                            {{ entry.teacher.name }} ({{ entry.classroom.room_number }}){% if not forloop.last %}<br>{% endif %}
+                                        {% endfor %}
+                                    </small>
+                                {% else %}
+                                    <small>{{ cell.entry.teacher.name }}<br>{{ cell.entry.classroom.room_number }}</small>
+                                {% endif %}
+                            </td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p><i class="fa-regular fa-folder-open me-1"></i>No timetable available for this semester.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadHtml2Canvas() {
+    if (window.html2canvas) return window.html2canvas;
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = () => resolve(window.html2canvas);
+        script.onerror = () => reject(new Error('Failed to load html2canvas'));
+        document.head.appendChild(script);
+    });
+}
+
+async function downloadRenderedSectionAsImage(button) {
+    const targetId = button.getAttribute('data-export-target');
+    const filename = button.getAttribute('data-export-filename') || 'timetable.png';
+    const target = document.getElementById(targetId);
+    if (!target) return false;
+
+    const hiddenElements = target.querySelectorAll('[data-hide-on-export]');
+    const oldVisibility = [];
+    hiddenElements.forEach((el) => {
+        oldVisibility.push([el, el.style.visibility]);
+        el.style.visibility = 'hidden';
+    });
+
+    try {
+        const html2canvas = await loadHtml2Canvas();
+        const canvas = await html2canvas(target, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            useCORS: true,
+            logging: false,
+        });
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        return true;
+    } catch (err) {
+        return false;
+    } finally {
+        oldVisibility.forEach(([el, value]) => {
+            el.style.visibility = value;
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('download-image-btn');
+    if (!btn) return;
+    btn.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const ok = await downloadRenderedSectionAsImage(btn);
+        if (!ok && btn.href) {
+            window.location.href = btn.href;
+        }
+    });
+});
+</script>
+{% endblock %}
+

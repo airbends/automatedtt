@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ room_type_plural }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fa-solid fa-door-open me-2 text-primary"></i>{{ room_type_plural }}</h2>
+        <a href="{% url add_url_name %}" class="btn btn-success">
+            <i class="fa-solid fa-circle-plus me-1"></i>Add {{ room_type_singular }}
+        </a>
+    </div>
+
+    <div class="row">
+        {% for room in rooms %}
+            <div class="col-md-4 mb-3">
+                <div class="card shadow-sm hover-card h-100 room-card position-relative">
+                    <a
+                        href="{% url detail_url_name room.pk %}"
+                        class="stretched-link"
+                        aria-label="View details for {{ room.room_number }}"
+                    ></a>
+                    <div class="card-body">
+                        <h5 class="card-title mb-2">{{ room.room_number }}</h5>
+                        <p class="mb-1">Capacity: {{ room.capacity }}</p>
+                        {% if room.is_lab %}
+                            <span class="badge text-bg-info mt-1">Laboratory</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary mt-1">Classroom</span>
+                        {% endif %}
+                        <div class="mt-3 room-card-actions">
+                            <a href="{% url edit_url_name room.pk %}" class="btn btn-sm btn-primary">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            <a href="{% url delete_url_name room.pk %}" class="btn btn-sm btn-danger">
+                                <i class="fa-solid fa-trash"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+        </div>
+        {% empty %}
+            <p><i class="fa-regular fa-folder-open me-1"></i>No {{ room_type_plural|lower }} available.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

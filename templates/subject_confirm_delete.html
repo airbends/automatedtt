@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Subject{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2><i class="fa-solid fa-triangle-exclamation me-2 text-danger"></i>Delete Subject</h2>
+    <p>Are you sure you want to delete "{{ object.name }}"?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash me-1"></i>Yes, delete</button>
+        <a href="{% url 'scheduler:semester_detail' object.semester.id %}" class="btn btn-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancel</a>
+    </form>
+</div>
+{% endblock %}
+

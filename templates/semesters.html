@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Semesters{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <h2><i class="fa-regular fa-calendar-days me-2 text-primary"></i>Semesters</h2>
+        <a href="{% url 'scheduler:semester_add' %}" class="btn btn-sm btn-success">
+            <i class="fa-solid fa-circle-plus me-1"></i>Add Semester
+        </a>
+    </div>
+    <div class="row">
+        {% for sem in semesters %}
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm hover-card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ sem.course.name }} - Semester {{ sem.number }}</h5>
+                    <div>
+                        <a href="{% url 'scheduler:semester_edit' sem.id %}" class="btn btn-sm btn-primary me-1">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                        <a href="{% url 'scheduler:semester_delete' sem.id %}" class="btn btn-sm btn-danger">
+                            <i class="fa-solid fa-trash"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p><i class="fa-regular fa-folder-open me-1"></i>No semesters defined.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

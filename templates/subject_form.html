@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}{% if form.instance.pk %}Edit Subject{% else %}Add Subject{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card subject-form-card shadow-sm">
+        <div class="card-body p-4 p-lg-5">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fa-solid fa-book me-2 text-primary"></i>
+                        {% if form.instance.pk %}Edit{% else %}Add{% endif %} Subject
+                    </h2>
+                    <p class="text-muted mb-0">Set semester hours and assign a teacher for this division.</p>
+                </div>
+                {% if division %}
+                    <span class="badge rounded-pill text-bg-warning"><i class="fa-solid fa-layer-group me-1"></i>Division {{ division.name }}</span>
+                {% endif %}
+            </div>
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {# preserve division context so the view knows which assignment to update #}
+                {% if division %}
+                    <input type="hidden" name="division" value="{{ division.id }}">
+                {% endif %}
+                {{ form.lab_batches_json }}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.semester.id_for_label }}" class="form-label">{{ form.semester.label }}</label>
+                        {{ form.semester }}
+                        {% if form.semester.errors %}<div class="text-danger small mt-1">{{ form.semester.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.total_hours.id_for_label }}" class="form-label">{{ form.total_hours.label }}</label>
+                        {{ form.total_hours }}
+                        {% if form.total_hours.help_text %}<div class="form-text">{{ form.total_hours.help_text }}</div>{% endif %}
+                        {% if form.total_hours.errors %}<div class="text-danger small mt-1">{{ form.total_hours.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.weekly_hours.id_for_label }}" class="form-label">{{ form.weekly_hours.label }}</label>
+                        {{ form.weekly_hours }}
+                        {% if form.weekly_hours.help_text %}<div class="form-text">{{ form.weekly_hours.help_text }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check mb-2">
+                            {{ form.is_lab }}
+                            <label for="{{ form.is_lab.id_for_label }}" class="form-check-label">{{ form.is_lab.label }}</label>
+                            {% if form.is_lab.help_text %}<div class="form-text">{{ form.is_lab.help_text }}</div>{% endif %}
+                            {% if form.is_lab.errors %}<div class="text-danger small mt-1">{{ form.is_lab.errors|striptags }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if form.teacher %}
+                    <div id="teacher-selector-panel" class="teacher-selector mt-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <h5 class="mb-0"><i class="fa-solid fa-chalkboard-user me-1"></i>Teacher Selection</h5>
+                            <input id="teacher-filter" type="text" class="form-control form-control-sm teacher-filter-input" placeholder="Search by name, subject, or department">
+                        </div>
+                        <p class="text-muted small mb-2">Used for non-lab subjects. For lab subjects, assign teachers per batch below.</p>
+                        <div class="table-responsive">
+                            <table class="table align-middle table-hover teacher-selector-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 88px;">Select</th>
+                                        <th>Teacher Name</th>
+                                        <th>Teaching Subjects</th>
+                                        <th>Department</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teacher-selector-body">
+                                    <tr class="teacher-row {% if not form.selected_teacher_id %}selected-row{% endif %}">
+                                        <td>
+                                            <input type="radio" class="form-check-input teacher-radio" name="teacher" value="" {% if not form.selected_teacher_id %}checked{% endif %}>
+                                        </td>
+                                        <td class="fw-semibold text-muted">Unassigned</td>
+                                        <td class="text-muted">-</td>
+                                        <td class="text-muted">-</td>
+                                    </tr>
+                                    {% for row in form.teacher_rows %}
+                                        <tr class="teacher-row {% if form.selected_teacher_id == row.id %}selected-row{% endif %}">
+                                            <td>
+                                                <input type="radio" class="form-check-input teacher-radio" name="teacher" value="{{ row.id }}" {% if form.selected_teacher_id == row.id %}checked{% endif %}>
+                                            </td>
+                                            <td>
+                                                <div class="fw-semibold">{{ row.name }}{% if row.knows_subject %} (knows this subject){% endif %}</div>
+                                                {% if row.knows_subject %}
+                                                    <span class="badge rounded-pill text-bg-success mt-1">Knows this subject</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="small">{{ row.subjects }}</td>
+                                            <td class="small">{{ row.departments }}</td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="text-muted"><i class="fa-regular fa-circle-xmark me-1"></i>No eligible teachers found for this department.</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if form.teacher.help_text %}<div class="form-text mt-2">{{ form.teacher.help_text }}</div>{% endif %}
+                        {% if form.teacher.errors %}<div class="text-danger small mt-1">{{ form.teacher.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div id="lab-batch-panel" class="teacher-selector mt-4 d-none">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <h5 class="mb-0"><i class="fa-solid fa-flask-vial me-1"></i>Lab Batch Assignment</h5>
+                            <button id="add-lab-batch-btn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-circle-plus me-1"></i>Add Batch</button>
+                        </div>
+                        <p class="text-muted small mb-2">
+                            Lab batches run strictly in parallel. Each batch must have a unique teacher.
+                            Laboratory is auto-picked by the scheduler based on availability and capacity.
+                        </p>
+                        <div class="table-responsive">
+                            <table class="table align-middle table-hover teacher-selector-table mb-0" id="lab-batch-table">
+                                <thead>
+                                    <tr>
+                                        <th>Batch No.</th>
+                                        <th>From Roll No.</th>
+                                        <th>To Roll No.</th>
+                                        <th>Teacher</th>
+                                        <th style="width: 82px;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lab-batch-body"></tbody>
+                            </table>
+                        </div>
+                        <div class="form-text mt-2">
+                            Total students assigned to the same laboratory in parallel must not exceed its capacity.
+                        </div>
+                        {% if form.lab_batches_json.errors %}
+                            <div class="text-danger small mt-1">{{ form.lab_batches_json.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary"><i class="fa-regular fa-floppy-disk me-1"></i>Save</button>
+                    <a href="{% if division %}{% url 'scheduler:division_detail' division.id %}{% elif form.instance.pk %}{% url 'scheduler:semester_detail' form.instance.semester.id %}{% elif request.GET.semester %}{% url 'scheduler:semester_detail' request.GET.semester %}{% else %}{% url 'scheduler:course_list' %}{% endif %}" class="btn btn-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% if form.teacher %}
+    {{ form.teacher_rows|json_script:"subject-teacher-options" }}
+    {{ form.lab_batch_rows|json_script:"subject-lab-batch-initial" }}
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .subject-form-card {
+        border-radius: 16px;
+        border: 1px solid #e8ecf4;
+        background: radial-gradient(circle at top right, #f6fbff 0%, #ffffff 45%);
+    }
+    .teacher-filter-input {
+        max-width: 340px;
+    }
+    .teacher-selector {
+        border: 1px solid #dbe5f1;
+        border-radius: 14px;
+        padding: 1rem;
+        background: #fcfdff;
+    }
+    .teacher-selector-table {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .teacher-selector-table thead th {
+        background: #f2f6fc;
+        font-weight: 600;
+        border-bottom: 1px solid #d8e2f0;
+    }
+    .teacher-row {
+        cursor: pointer;
+        transition: background-color 0.18s ease;
+    }
+    .teacher-row.selected-row {
+        background-color: #e9f2ff;
+    }
+    .teacher-row:hover {
+        background-color: #f4f8ff;
+    }
+    .lab-batch-remove {
+        min-width: 64px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        const subjectForm = document.querySelector('.subject-form-card form');
+        if (!subjectForm) return;
+
+        const isLabCheckbox = document.getElementById('id_is_lab');
+        const teacherPanel = document.getElementById('teacher-selector-panel');
+        const labBatchPanel = document.getElementById('lab-batch-panel');
+        const labBatchBody = document.getElementById('lab-batch-body');
+        const addBatchButton = document.getElementById('add-lab-batch-btn');
+        const labBatchHidden = document.getElementById('id_lab_batches_json');
+
+        const teacherJsonNode = document.getElementById('subject-teacher-options');
+        const initialBatchNode = document.getElementById('subject-lab-batch-initial');
+        const teacherOptions = teacherJsonNode ? JSON.parse(teacherJsonNode.textContent) : [];
+        let labBatchRows = initialBatchNode ? JSON.parse(initialBatchNode.textContent) : [];
+
+        const tableBody = document.getElementById('teacher-selector-body');
+        const teacherRows = tableBody ? Array.from(tableBody.querySelectorAll('.teacher-row')) : [];
+        const filterInput = document.getElementById('teacher-filter');
+
+        function refreshSelectedState() {
+            teacherRows.forEach((row) => {
+                const radio = row.querySelector('.teacher-radio');
+                if (!radio) return;
+                row.classList.toggle('selected-row', radio.checked);
+            });
+        }
+
+        teacherRows.forEach((row) => {
+            row.addEventListener('click', (event) => {
+                const target = event.target;
+                if (target && target.matches('a, button, input, select, textarea, label')) {
+                    return;
+                }
+                const radio = row.querySelector('.teacher-radio');
+                if (!radio || radio.disabled) return;
+                radio.checked = true;
+                refreshSelectedState();
+            });
+            const radio = row.querySelector('.teacher-radio');
+            if (radio) {
+                radio.addEventListener('change', refreshSelectedState);
+            }
+        });
+
+        if (filterInput) {
+            filterInput.addEventListener('input', () => {
+                const q = filterInput.value.trim().toLowerCase();
+                teacherRows.forEach((row) => {
+                    const searchable = row.innerText.toLowerCase();
+                    row.style.display = !q || searchable.includes(q) ? '' : 'none';
+                });
+            });
+        }
+
+        function createTeacherSelect(value) {
+            const select = document.createElement('select');
+            select.className = 'form-select form-select-sm lab-batch-teacher';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select teacher';
+            select.appendChild(placeholder);
+            teacherOptions.forEach((teacher) => {
+                const option = document.createElement('option');
+                option.value = String(teacher.id);
+                option.textContent = teacher.name;
+                if (String(value || '') === String(teacher.id)) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+            return select;
+        }
+
+        function createInput(className, value, type = 'text', min = null) {
+            const input = document.createElement('input');
+            input.type = type;
+            input.className = `form-control form-control-sm ${className}`;
+            input.value = value || '';
+            if (min !== null) {
+                input.min = min;
+            }
+            return input;
+        }
+
+        function renderBatchRows() {
+            if (!labBatchBody) return;
+            labBatchBody.innerHTML = '';
+
+            if (!labBatchRows.length) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = '<td colspan="6" class="text-muted small"><i class="fa-regular fa-folder-open me-1"></i>No lab batches added yet.</td>';
+                labBatchBody.appendChild(emptyRow);
+                return;
+            }
+
+            labBatchRows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+
+                const batchTd = document.createElement('td');
+                batchTd.appendChild(createInput('lab-batch-number', row.batch_number));
+                tr.appendChild(batchTd);
+
+                const fromTd = document.createElement('td');
+                fromTd.appendChild(createInput('lab-batch-from', row.from_roll_no, 'number', 1));
+                tr.appendChild(fromTd);
+
+                const toTd = document.createElement('td');
+                toTd.appendChild(createInput('lab-batch-to', row.to_roll_no, 'number', 1));
+                tr.appendChild(toTd);
+
+                const teacherTd = document.createElement('td');
+                teacherTd.appendChild(createTeacherSelect(row.teacher_id));
+                tr.appendChild(teacherTd);
+
+                const actionTd = document.createElement('td');
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-sm btn-outline-danger lab-batch-remove';
+                removeBtn.innerHTML = '<i class=\"fa-solid fa-trash\"></i>';
+                removeBtn.addEventListener('click', () => {
+                    labBatchRows.splice(idx, 1);
+                    renderBatchRows();
+                });
+                actionTd.appendChild(removeBtn);
+                tr.appendChild(actionTd);
+
+                labBatchBody.appendChild(tr);
+            });
+        }
+
+        function collectBatchRowsFromDom() {
+            if (!labBatchBody) return [];
+            const rows = [];
+            labBatchBody.querySelectorAll('tr').forEach((tr) => {
+                const batchInput = tr.querySelector('.lab-batch-number');
+                const fromInput = tr.querySelector('.lab-batch-from');
+                const toInput = tr.querySelector('.lab-batch-to');
+                const teacherSelect = tr.querySelector('.lab-batch-teacher');
+                if (!batchInput || !fromInput || !toInput || !teacherSelect) {
+                    return;
+                }
+                rows.push({
+                    batch_number: batchInput.value.trim(),
+                    from_roll_no: fromInput.value,
+                    to_roll_no: toInput.value,
+                    teacher_id: teacherSelect.value,
+                });
+            });
+            return rows;
+        }
+
+        function togglePanels() {
+            if (!isLabCheckbox || !teacherPanel || !labBatchPanel) return;
+            const isLab = isLabCheckbox.checked;
+            teacherPanel.classList.toggle('d-none', isLab);
+            labBatchPanel.classList.toggle('d-none', !isLab);
+        }
+
+        if (addBatchButton) {
+            addBatchButton.addEventListener('click', () => {
+                labBatchRows.push({
+                    batch_number: '',
+                    from_roll_no: '',
+                    to_roll_no: '',
+                    teacher_id: '',
+                });
+                renderBatchRows();
+            });
+        }
+
+        if (isLabCheckbox) {
+            isLabCheckbox.addEventListener('change', () => {
+                togglePanels();
+                if (isLabCheckbox.checked && labBatchRows.length === 0) {
+                    labBatchRows.push({
+                        batch_number: '',
+                        from_roll_no: '',
+                        to_roll_no: '',
+                        teacher_id: '',
+                    });
+                    renderBatchRows();
+                }
+            });
+        }
+
+        subjectForm.addEventListener('submit', () => {
+            if (!labBatchHidden) return;
+            if (isLabCheckbox && isLabCheckbox.checked) {
+                const rows = collectBatchRowsFromDom();
+                labBatchHidden.value = JSON.stringify(rows);
+            } else {
+                labBatchHidden.value = '';
+            }
+        });
+
+        refreshSelectedState();
+        renderBatchRows();
+        togglePanels();
+    })();
+</script>
+{% endblock %}
+

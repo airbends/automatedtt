@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Automated College Timetable Generator{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const chartPayload = JSON.parse('{{ chart_data|escapejs }}');
+    const ctx = document.getElementById('subjectsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartPayload.labels,
+            datasets: [{
+                label: 'Subjects',
+                data: chartPayload.values,
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-primary text-white py-5">
+    <div class="container text-center">
+        <h1 class="display-4"><i class="fa-solid fa-graduation-cap me-2"></i>Automated College Timetable Generator</h1>
+        <p class="lead">Create and manage your academic schedules intelligently with a few clicks.</p>
+        <a href="{% url 'scheduler:department_list' %}" class="btn btn-lg btn-light mt-3"><i class="fa-solid fa-compass me-1"></i>Explore Departments</a>
+    </div>
+</section>
+
+<!-- Dashboard Stats -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-2">
+                <a href="{% url 'scheduler:department_list' %}" class="text-decoration-none">
+                <div class="card text-white bg-primary h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <i class="fa-solid fa-building fs-1"></i>
+                        <h5 class="card-title mt-3">Departments</h5>
+                        <p class="card-text fs-4">{{ stats.departments }}</p>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-2">
+                <a href="{% url 'scheduler:course_list' %}" class="text-decoration-none">
+                <div class="card text-white bg-success h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <i class="fa-solid fa-book-bookmark fs-1"></i>
+                        <h5 class="card-title mt-3">Courses</h5>
+                        <p class="card-text fs-4">{{ stats.courses }}</p>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-2">
+                <a href="{% url 'scheduler:teacher_list' %}" class="text-decoration-none">
+                <div class="card text-white bg-warning h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <i class="fa-solid fa-chalkboard-user fs-1"></i>
+                        <h5 class="card-title mt-3">Teachers</h5>
+                        <p class="card-text fs-4">{{ stats.teachers }}</p>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-2">
+                <a href="{% url 'scheduler:department_list' %}" class="text-decoration-none">
+                <div class="card text-white bg-danger h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <i class="fa-solid fa-book fs-1"></i>
+                        <h5 class="card-title mt-3">Subjects</h5>
+                        <p class="card-text fs-4">{{ stats.subjects }}</p>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-2">
+                <a href="{% url 'scheduler:classroom_list' %}" class="text-decoration-none">
+                <div class="card text-white bg-info h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <i class="fa-solid fa-door-open fs-1"></i>
+                        <h5 class="card-title mt-3">Classrooms</h5>
+                        <p class="card-text fs-4">{{ stats.classrooms }}</p>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-2">
+                <a href="{% url 'scheduler:laboratory_list' %}" class="text-decoration-none">
+                <div class="card text-white bg-primary h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <i class="fa-solid fa-laptop fs-1"></i>
+                        <h5 class="card-title mt-3">Laboratories</h5>
+                        <p class="card-text fs-4">{{ stats.laboratories }}</p>
+                    </div>
+                </div>
+                </a>
+            </div>
+        </div>
+    </div>
+    <!-- Smart timetable call-to-action occupies full width, styled separately -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'scheduler:smart_timetable' %}" class="text-decoration-none">
+                <div class="card text-white bg-info h-100 shadow-sm hover-card smart-card">
+                    <div class="card-body text-center">
+                        <i class="fa-solid fa-calendar-week fs-1"></i>
+                        <h5 class="card-title mt-3">Smart Timetable</h5>
+                        <p class="card-text">Generate schedule for any semester.</p>
+                        
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+        <!-- Chart section -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <h4 class="mb-3"><i class="fa-solid fa-chart-column me-2 text-primary"></i>Subjects per Department</h4>
+                <canvas id="subjectsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</section>
+ 
+
+{% endblock %}
+

@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2><i class="fa-solid fa-calendar-week me-2 text-primary"></i>Generate Smart Timetable</h2>
+    {% if failure_details %}
+    <div class="alert alert-warning mt-3">
+        <h6 class="mb-2"><i class="fa-solid fa-circle-info me-2"></i>Why it failed</h6>
+        <ul class="mb-0 ps-3">
+            {% for point in failure_details %}
+            <li>{{ point }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            {{ form.department.label_tag }}
+            {{ form.department }}
+        </div>
+        <div class="mb-3">
+            {{ form.course.label_tag }}
+            {{ form.course }}
+        </div>
+        <div class="mb-3">
+            {{ form.semester.label_tag }}
+            {{ form.semester }}
+        </div>
+        <div class="mb-3">
+            {{ form.division.label_tag }}
+            {{ form.division }}
+            {% if form.division.help_text %}<small class="form-text text-muted">{{ form.division.help_text }}</small>{% endif %}
+        </div>
+        <button type="submit" name="action" value="generate" class="btn btn-primary"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Generate Preview</button>
+    </form>
+</div>
+
+{% if semester and table and timeslots %}
+<hr>
+<div id="smart-preview-export-root">
+<h3 class="mt-4"><i class="fa-regular fa-calendar-days me-2 text-primary"></i>Timetable for {{ semester.course.name }} - Semester {{ semester.number }}{% if division %} - {{ division.name }}{% endif %}</h3>
+<p class="text-muted mb-2">Preview only. Click "Confirm & Save" to publish this timetable for the division.</p>
+{% if preview_available %}
+<div class="d-flex gap-2 mb-3" data-hide-on-export="true">
+    <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="department" value="{{ form.department.value|default:'' }}">
+        <input type="hidden" name="course" value="{{ form.course.value|default:'' }}">
+        <input type="hidden" name="semester" value="{{ form.semester.value|default:'' }}">
+        <input type="hidden" name="division" value="{{ form.division.value|default:'' }}">
+        <input type="hidden" name="preview_token" value="{{ preview_token|default:'' }}">
+        <button type="submit" name="action" value="save_preview" class="btn btn-success">
+            <i class="fa-solid fa-check me-1"></i>Confirm & Save
+        </button>
+    </form>
+    <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="department" value="{{ form.department.value|default:'' }}">
+        <input type="hidden" name="course" value="{{ form.course.value|default:'' }}">
+        <input type="hidden" name="semester" value="{{ form.semester.value|default:'' }}">
+        <input type="hidden" name="division" value="{{ form.division.value|default:'' }}">
+        <button type="submit" name="action" value="cancel_preview" class="btn btn-outline-danger">
+            <i class="fa-solid fa-xmark me-1"></i>Cancel
+        </button>
+    </form>
+    <button
+        type="button"
+        class="btn btn-outline-secondary"
+        id="smart-export-image-btn"
+        data-export-target="smart-preview-export-root"
+        data-export-filename="timetable_sem_{{ semester.id }}{% if division %}_division_{{ division.id }}{% endif %}_preview.png"
+        data-preview-token="{{ preview_token|default:'' }}"
+    >
+        <i class="fa-regular fa-image me-1"></i>Export Image
+    </button>
+</div>
+{% endif %}
+<div class="table-responsive">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Day / Slot</th>
+                {% for slot in timeslots %}
+                <th{% if slot.is_break %} class="table-secondary"{% endif %}>
+                    {{ slot.start_time|time:"h:i A" }} - {{ slot.end_time|time:"h:i A" }}
+                    {% if slot.is_break %}<br><small>Break</small>{% endif %}
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for day, cells in table %}
+            <tr>
+                <td>{{ day }}</td>
+                {% for cell in cells %}
+                    {% if cell.break %}
+                        <td class="table-secondary"><em>Break</em></td>
+                    {% elif cell.empty %}
+                        <td></td>
+                    {% else %}
+                        <td{% if cell.colspan and cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %}>
+                            <strong>{{ cell.entry.subject.name }}</strong><br>
+                            {% if cell.batch_rows %}
+                                {% for batch in cell.batch_rows %}
+                                    Batch {{ batch.batch_number }}: {{ batch.from_roll_no }}-{{ batch.to_roll_no }} - {{ batch.teacher.name }} ({{ batch.laboratory.room_number }}){% if not forloop.last %}<br>{% endif %}
+                                {% endfor %}
+                            {% elif cell.entries and cell.entries|length > 1 %}
+                                {% for entry in cell.entries %}
+                                    {{ entry.teacher.name }} ({{ entry.classroom.room_number }}){% if not forloop.last %}<br>{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                {{ cell.entry.teacher.name }}<br>
+                                {{ cell.entry.classroom.room_number }}
+                            {% endif %}
+                        </td>
+                    {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function loadHtml2Canvas() {
+        if (window.html2canvas) return window.html2canvas;
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+            script.onload = () => resolve(window.html2canvas);
+            script.onerror = () => reject(new Error('Failed to load html2canvas'));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function downloadRenderedSectionAsImage(button) {
+        const targetId = button.getAttribute('data-export-target');
+        const filename = button.getAttribute('data-export-filename') || 'timetable.png';
+        const target = document.getElementById(targetId);
+        if (!target) return false;
+
+        const hiddenElements = target.querySelectorAll('[data-hide-on-export]');
+        const oldVisibility = [];
+        hiddenElements.forEach((el) => {
+            oldVisibility.push([el, el.style.visibility]);
+            el.style.visibility = 'hidden';
+        });
+
+        try {
+            const html2canvas = await loadHtml2Canvas();
+            const canvas = await html2canvas(target, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                useCORS: true,
+                logging: false,
+            });
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            return true;
+        } catch (err) {
+            return false;
+        } finally {
+            oldVisibility.forEach(([el, value]) => {
+                el.style.visibility = value;
+            });
+        }
+    }
+
+    function submitServerImageExportFallback() {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = window.location.pathname + window.location.search;
+        form.style.display = 'none';
+
+        const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrf && csrf.value) {
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = 'csrfmiddlewaretoken';
+            tokenInput.value = csrf.value;
+            form.appendChild(tokenInput);
+        }
+
+        ['department', 'course', 'semester', 'division'].forEach((name) => {
+            const field = document.getElementById(`id_${name}`);
+            if (!field || !field.value) return;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = field.value;
+            form.appendChild(input);
+        });
+
+        const action = document.createElement('input');
+        action.type = 'hidden';
+        action.name = 'action';
+        action.value = 'export_preview_image';
+        form.appendChild(action);
+
+        const exportBtn = document.getElementById('smart-export-image-btn');
+        const previewToken = exportBtn ? (exportBtn.getAttribute('data-preview-token') || '') : '';
+        if (previewToken) {
+            const previewInput = document.createElement('input');
+            previewInput.type = 'hidden';
+            previewInput.name = 'preview_token';
+            previewInput.value = previewToken;
+            form.appendChild(previewInput);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // dynamic cascading selects: department -> course -> semester
+    const deptField = document.getElementById('id_department');
+    const courseField = document.getElementById('id_course');
+    const semField = document.getElementById('id_semester');
+    if(deptField){
+        deptField.addEventListener('change', function(){
+            const val = this.value;
+            window.location.href = `?dept=${val}`;
+        });
+    }
+    if(courseField){
+        courseField.addEventListener('change', function(){
+            const val = this.value;
+            const deptVal = deptField ? deptField.value : '';
+            let url = `?`;
+            if(deptVal) url += `dept=${deptVal}&`;
+            url += `course=${val}`;
+            window.location.href = url;
+        });
+    }
+    if(semField){
+        semField.addEventListener('change', function(){
+            const val = this.value;
+            const deptVal = deptField ? deptField.value : '';
+            const courseVal = courseField ? courseField.value : '';
+            let url = `?`;
+            if(deptVal) url += `dept=${deptVal}&`;
+            if(courseVal) url += `course=${courseVal}&`;
+            url += `sem=${val}`;
+            window.location.href = url;
+        });
+    }
+
+    const smartExportButton = document.getElementById('smart-export-image-btn');
+    if (smartExportButton) {
+        smartExportButton.addEventListener('click', async function () {
+            const ok = await downloadRenderedSectionAsImage(smartExportButton);
+            if (!ok) {
+                submitServerImageExportFallback();
+            }
+        });
+    }
+</script>
+{% endblock %}
+

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}{% if form.instance.pk %}Edit Department{% else %}Add Department{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2>
+        <i class="fa-solid fa-building me-2 text-primary"></i>
+        {% if form.instance.pk %}Edit{% else %}Add{% endif %} Department
+    </h2>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary"><i class="fa-regular fa-floppy-disk me-1"></i>Save</button>
+        <a href="{% url 'scheduler:department_list' %}" class="btn btn-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancel</a>
+    </form>
+</div>
+{% endblock %}
+

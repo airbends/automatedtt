@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}{% if form.instance.pk %}Edit Teacher{% else %}Add Teacher{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow-sm teacher-form-card">
+        <div class="card-body p-4">
+            <h2 class="mb-4">
+                <i class="fa-solid fa-user-pen me-2 text-primary"></i>
+                {% if form.instance.pk %}Edit{% else %}Add{% endif %} Teacher
+            </h2>
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.department.id_for_label }}" class="form-label">{{ form.department.label }}</label>
+                    {{ form.department }}
+                    {% if form.department.help_text %}<div class="form-text">{{ form.department.help_text }}</div>{% endif %}
+                    {% if form.department.errors %}<div class="text-danger small mt-1">{{ form.department.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3" id="additional-departments-group">
+                    <label for="{{ form.additional_departments.id_for_label }}" class="form-label">{{ form.additional_departments.label }}</label>
+                    <div class="multi-select-wrap">
+                        {{ form.additional_departments }}
+                    </div>
+                    {% if form.additional_departments.help_text %}<div class="form-text">{{ form.additional_departments.help_text }}</div>{% endif %}
+                    {% if form.additional_departments.errors %}<div class="text-danger small mt-1">{{ form.additional_departments.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label for="{{ form.subjects_known.id_for_label }}" class="form-label">{{ form.subjects_known.label }}</label>
+                    {{ form.subjects_known }}
+                    {% if form.subjects_known.help_text %}<div class="form-text">{{ form.subjects_known.help_text }}</div>{% endif %}
+                    {% if form.subjects_known.errors %}<div class="text-danger small mt-1">{{ form.subjects_known.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-primary"><i class="fa-regular fa-floppy-disk me-1"></i>Save</button>
+                <a href="{% url 'scheduler:teacher_list' %}" class="btn btn-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .teacher-form-card {
+        max-width: 760px;
+        border-radius: 14px;
+    }
+    .multi-select-wrap #id_additional_departments {
+        border: 1px solid #ced4da;
+        border-radius: 10px;
+        background: #fff;
+        padding: 0.5rem 0.75rem;
+        max-height: 220px;
+        overflow: auto;
+    }
+    .multi-select-wrap #id_additional_departments > div {
+        margin-bottom: 0.4rem;
+    }
+    .multi-select-wrap #id_additional_departments > div:last-child {
+        margin-bottom: 0;
+    }
+    .multi-select-wrap #id_additional_departments label {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        color: #1f2937;
+        cursor: pointer;
+        margin: 0;
+    }
+    .multi-select-wrap #id_additional_departments input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        const deptSelect = document.getElementById('id_department');
+        const additionalGroup = document.getElementById('additional-departments-group');
+        const additionalContainer = document.getElementById('id_additional_departments');
+        if (!deptSelect || !additionalGroup || !additionalContainer) return;
+
+        function toggleAdditionalDepartments() {
+            const isMultipleDepartmentMode = deptSelect.value === '';
+            additionalGroup.style.display = isMultipleDepartmentMode ? '' : 'none';
+            const additionalInputs = additionalContainer.querySelectorAll('input[name="additional_departments"]');
+            additionalInputs.forEach((input) => {
+                input.disabled = !isMultipleDepartmentMode;
+            });
+
+            if (!isMultipleDepartmentMode) {
+                additionalInputs.forEach((input) => {
+                    input.checked = false;
+                });
+            }
+        }
+
+        deptSelect.addEventListener('change', toggleAdditionalDepartments);
+        toggleAdditionalDepartments();
+    })();
+</script>
+{% endblock %}
+
